@@ -1,11 +1,9 @@
-"""Скачивание видео через yt-dlp — TikTok без водяного знака."""
+"""Скачивание TikTok видео через tikwm.com API (без водяного знака)."""
 
 import os
 import re
 import tempfile
-import yt_dlp
-
-from config import PROXY_URL
+import requests
 
 
 def extract_username(url: str) -> str:
@@ -16,31 +14,39 @@ def extract_username(url: str) -> str:
 
 def download_video(url: str) -> tuple[str, str]:
     """Скачивает видео и возвращает (путь_к_файлу, username)."""
+    # Получаем данные о видео через API
+    api_url = "https://www.tikwm.com/api/"
+    resp = requests.get(api_url, params={"url": url, "hd": 1}, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    if data.get("code") != 0:
+        raise Exception(data.get("msg", "API error"))
+
+    video_data = data["data"]
+    video_url = video_data.get("hdplay") or video_data.get("play")
+
+    if not video_url:
+        raise Exception("Не удалось получить ссылку на видео")
+
+    # Извлекаем username
+    username = extract_username(url)
+    if not username:
+        author = video_data.get("author", {})
+        username = (
+            author.get("unique_id")
+            or author.get("nickname")
+            or "unknown"
+        )
+
+    # Скачиваем видео
     tmp_dir = tempfile.mkdtemp(prefix="animore_")
-    output_template = os.path.join(tmp_dir, "%(id)s.%(ext)s")
+    file_path = os.path.join(tmp_dir, f"{video_data.get('id', 'video')}.mp4")
 
-    ydl_opts = {
-        "outtmpl": output_template,
-        "format": "best[ext=mp4]/best",
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-    }
+    video_resp = requests.get(video_url, timeout=120)
+    video_resp.raise_for_status()
 
-    if PROXY_URL:
-        ydl_opts["proxy"] = PROXY_URL
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        file_path = ydl.prepare_filename(info)
-
-        username = extract_username(url)
-        if not username:
-            username = (
-                info.get("uploader")
-                or info.get("channel")
-                or info.get("uploader_id")
-                or "unknown"
-            )
+    with open(file_path, "wb") as f:
+        f.write(video_resp.content)
 
     return file_path, username
