@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, fil
 
 from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB
 from downloader import download_video
-from notion_client import link_exists, create_page
+from notion_service import link_exists, create_page
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
