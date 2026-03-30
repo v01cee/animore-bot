@@ -1,26 +1,34 @@
-"""Notion API — проверка дубликатов и создание записей."""
+"""Notion API через requests — проверка дубликатов и создание записей."""
 
-from notion_client import Client
+import requests
 from config import NOTION_TOKEN, NOTION_DATABASE_ID
 
-notion = Client(auth=NOTION_TOKEN)
+NOTION_API = "https://api.notion.com/v1"
+HEADERS = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Content-Type": "application/json",
+    "Notion-Version": "2022-06-28",
+}
 
 
 def link_exists(url: str) -> bool:
     """Проверяет, есть ли ссылка уже в базе Notion."""
-    response = notion.databases.query(
-        **{
-            "database_id": NOTION_DATABASE_ID,
-            "filter": {"property": "Link", "url": {"equals": url}},
-        }
+    resp = requests.post(
+        f"{NOTION_API}/databases/{NOTION_DATABASE_ID}/query",
+        headers=HEADERS,
+        json={"filter": {"property": "Link", "url": {"equals": url}}},
+        timeout=15,
     )
-    return len(response["results"]) > 0
+    resp.raise_for_status()
+    return len(resp.json()["results"]) > 0
 
 
 def create_page(username: str, url: str, category: str = "Anime") -> None:
     """Создаёт новую запись в базе Notion."""
-    notion.pages.create(
-        **{
+    resp = requests.post(
+        f"{NOTION_API}/pages",
+        headers=HEADERS,
+        json={
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": {
                 "Content Creator": {
@@ -30,5 +38,7 @@ def create_page(username: str, url: str, category: str = "Anime") -> None:
                 "Category": {"select": {"name": category}},
                 "Checkbox": {"checkbox": False},
             },
-        }
+        },
+        timeout=15,
     )
+    resp.raise_for_status()
