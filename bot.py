@@ -1,4 +1,4 @@
-"""ANIMØRE Bot — downloads TikTok videos and saves metadata to Notion."""
+"""ANIMØRE Bot — скачивает TikTok видео и сохраняет метаданные в Notion."""
 
 import os
 import re
@@ -7,7 +7,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
 
-from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB
+from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB, ADMIN_IDS
 from downloader import download_video
 from notion_service import link_exists, create_page
 
@@ -21,82 +21,93 @@ logger = logging.getLogger(__name__)
 TIKTOK_URL_RE = re.compile(r"https?://(?:www\.|vt\.|vm\.)?tiktok\.com/\S+")
 
 
+def is_admin(update: Update) -> bool:
+    """Проверяет, является ли пользователь админом."""
+    return update.effective_user and update.effective_user.id in ADMIN_IDS
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start command."""
+    """Обработка команды /start."""
+    if not is_admin(update):
+        await update.message.reply_text("⛔ У вас нет доступа к этому боту.")
+        return
+
     await update.message.reply_text(
-        "👋 Hi! Send me a TikTok link and I'll download the video and save it to Notion."
+        "👋 Привет! Отправь мне ссылку на TikTok — скачаю видео и сохраню в Notion."
     )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Process incoming messages — expect TikTok links."""
+    """Обработка входящих сообщений — ожидаем ссылки на TikTok."""
+    if not is_admin(update):
+        await update.message.reply_text("⛔ У вас нет доступа к этому боту.")
+        return
+
     text = update.message.text or ""
     match = TIKTOK_URL_RE.search(text)
 
     if not match:
-        await update.message.reply_text("Send me a TikTok link.")
+        await update.message.reply_text("Отправь мне ссылку на TikTok.")
         return
 
     url = match.group(0)
 
-    # --- Deduplication ---
+    # --- Проверка дубликатов ---
     try:
         if link_exists(url):
-            await update.message.reply_text("⚠️ Already in the database.")
+            await update.message.reply_text("⚠️ Уже есть в базе.")
             return
     except Exception as e:
-        logger.error("Notion check failed: %s", e)
-        # Continue anyway — better to download than to block
+        logger.error("Ошибка проверки Notion: %s", e)
 
-    # --- Download ---
-    await update.message.reply_text("⏳ Downloading...")
+    # --- Скачивание ---
+    await update.message.reply_text("⏳ Скачиваю...")
 
     try:
         file_path, username = download_video(url)
     except Exception as e:
-        logger.error("Download failed: %s", e)
-        await update.message.reply_text("❌ Could not download. Check the link.")
+        logger.error("Ошибка скачивания: %s", e)
+        await update.message.reply_text("❌ Не удалось скачать. Проверь ссылку.")
         return
 
-    # --- Send video ---
+    # --- Отправка видео ---
     try:
         file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
         if file_size_mb > TELEGRAM_FILE_LIMIT_MB:
             await update.message.reply_text(
-                f"❌ Video is too large ({file_size_mb:.1f} MB). "
-                f"Telegram limit is {TELEGRAM_FILE_LIMIT_MB} MB."
+                f"❌ Видео слишком большое ({file_size_mb:.1f} МБ). "
+                f"Лимит Telegram — {TELEGRAM_FILE_LIMIT_MB} МБ."
             )
         else:
             with open(file_path, "rb") as video_file:
                 await update.message.reply_video(video=video_file)
     except Exception as e:
-        logger.error("Failed to send video: %s", e)
-        await update.message.reply_text("❌ Failed to send the video.")
+        logger.error("Ошибка отправки видео: %s", e)
+        await update.message.reply_text("❌ Не удалось отправить видео.")
     finally:
-        # Clean up downloaded file
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    # --- Save to Notion ---
+    # --- Сохранение в Notion ---
     try:
         create_page(username=username, url=url)
-        await update.message.reply_text("✅ Done. Saved to Notion.")
+        await update.message.reply_text("✅ Готово. Сохранено в Notion.")
     except Exception as e:
-        logger.error("Notion save failed: %s", e)
-        await update.message.reply_text("❌ Downloaded but failed to save to Notion.")
+        logger.error("Ошибка сохранения в Notion: %s", e)
+        await update.message.reply_text("❌ Скачал, но не удалось сохранить в Notion.")
 
 
 def main() -> None:
-    """Start the bot."""
+    """Запуск бота."""
     if not TELEGRAM_TOKEN:
-        raise ValueError("TELEGRAM_TOKEN is not set. Check your .env file.")
+        raise ValueError("TELEGRAM_TOKEN не задан. Проверь .env файл.")
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot started")
+    logger.info("Бот запущен")
     app.run_polling()
 
 

@@ -11,3 +11,6 @@ NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "")
 
 # Telegram bot API limit for file uploads
 TELEGRAM_FILE_LIMIT_MB = 50
+
+# Allowed Telegram user IDs (only these users can interact with the bot)
+ADMIN_IDS = [1133696726, 5818121757]
