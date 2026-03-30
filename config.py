@@ -13,7 +13,7 @@ NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "")
 TELEGRAM_FILE_LIMIT_MB = 50
 
 # Allowed Telegram user IDs (only these users can interact with the bot)
-ADMIN_IDS = [1133696726, 5818121757]
+ADMIN_IDS = [1133696726, 5818121757, 1254526166]
 
 # Proxy for yt-dlp (needed if server IP is blocked by TikTok)
 # Format: socks5://user:pass@host:port or http://host:port
