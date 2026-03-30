@@ -40,7 +40,7 @@ def create_page(username: str, url: str, category: str = "Anime") -> None:
                     "title": [{"text": {"content": username}}],
                 },
                 "Link": {"url": url},
-                "Category": {"select": {"name": category}},
+                "Category": {"multi_select": [{"name": category}]},
                 "Checkbox": {"checkbox": False},
             },
         },
