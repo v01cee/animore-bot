@@ -1,7 +1,10 @@
 """Notion API через requests — проверка дубликатов и создание записей."""
 
+import logging
 import requests
 from config import NOTION_TOKEN, NOTION_DATABASE_ID
+
+logger = logging.getLogger(__name__)
 
 NOTION_API = "https://api.notion.com/v1"
 HEADERS = {
@@ -19,6 +22,8 @@ def link_exists(url: str) -> bool:
         json={"filter": {"property": "Link", "url": {"equals": url}}},
         timeout=15,
     )
+    if not resp.ok:
+        logger.error("Notion query error: %s", resp.text)
     resp.raise_for_status()
     return len(resp.json()["results"]) > 0
 
@@ -41,4 +46,6 @@ def create_page(username: str, url: str, category: str = "Anime") -> None:
         },
         timeout=15,
     )
+    if not resp.ok:
+        logger.error("Notion create error: %s", resp.text)
     resp.raise_for_status()
