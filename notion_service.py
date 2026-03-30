@@ -28,21 +28,34 @@ def link_exists(url: str) -> bool:
     return len(resp.json()["results"]) > 0
 
 
-def create_page(username: str, url: str, category: str = "Anime") -> None:
+def create_page(username: str, url: str, video_url: str = "", category: str = "Anime") -> None:
     """Создаёт новую запись в базе Notion."""
+    properties = {
+        "Content Creator": {
+            "title": [{"text": {"content": username}}],
+        },
+        "Link": {"url": url},
+        "Category": {"multi_select": [{"name": category}]},
+        "Checkbox": {"checkbox": False},
+    }
+
+    if video_url:
+        properties["Files & media"] = {
+            "files": [
+                {
+                    "name": f"{username}.mp4",
+                    "type": "external",
+                    "external": {"url": video_url},
+                }
+            ]
+        }
+
     resp = requests.post(
         f"{NOTION_API}/pages",
         headers=HEADERS,
         json={
             "parent": {"database_id": NOTION_DATABASE_ID},
-            "properties": {
-                "Content Creator": {
-                    "title": [{"text": {"content": username}}],
-                },
-                "Link": {"url": url},
-                "Category": {"multi_select": [{"name": category}]},
-                "Checkbox": {"checkbox": False},
-            },
+            "properties": properties,
         },
         timeout=15,
     )

@@ -12,8 +12,8 @@ def extract_username(url: str) -> str:
     return match.group(1) if match else ""
 
 
-def download_video(url: str) -> tuple[str, str]:
-    """Скачивает видео и возвращает (путь_к_файлу, username)."""
+def download_video(url: str) -> tuple[str, str, str]:
+    """Скачивает видео и возвращает (путь_к_файлу, username, video_url)."""
     # Получаем данные о видео через API
     api_url = "https://www.tikwm.com/api/"
     resp = requests.get(api_url, params={"url": url, "hd": 1}, timeout=30)
@@ -49,4 +49,4 @@ def download_video(url: str) -> tuple[str, str]:
     with open(file_path, "wb") as f:
         f.write(video_resp.content)
 
-    return file_path, username
+    return file_path, username, video_url

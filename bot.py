@@ -64,7 +64,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text("⏳ Скачиваю...")
 
     try:
-        file_path, username = download_video(url)
+        file_path, username, video_url = download_video(url)
     except Exception as e:
         logger.error("Ошибка скачивания: %s", e)
         await update.message.reply_text("❌ Не удалось скачать. Проверь ссылку.")
@@ -91,7 +91,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # --- Сохранение в Notion ---
     try:
-        create_page(username=username, url=url)
+        create_page(username=username, url=url, video_url=video_url)
         await update.message.reply_text("✅ Готово. Сохранено в Notion.")
     except Exception as e:
         logger.error("Ошибка сохранения в Notion: %s", e)
