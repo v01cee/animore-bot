@@ -6,6 +6,7 @@ import logging
 
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB, ADMIN_IDS
 from downloader import download_video
@@ -81,7 +82,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
         else:
             with open(file_path, "rb") as video_file:
-                await update.message.reply_video(video=video_file)
+                await update.message.reply_video(
+                    video=video_file,
+                    read_timeout=120,
+                    write_timeout=120,
+                    connect_timeout=30,
+                )
     except Exception as e:
         logger.error("Ошибка отправки видео: %s", e)
         await update.message.reply_text("❌ Не удалось отправить видео.")
@@ -103,7 +109,9 @@ def main() -> None:
     if not TELEGRAM_TOKEN:
         raise ValueError("TELEGRAM_TOKEN не задан. Проверь .env файл.")
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    # Увеличиваем таймауты для загрузки больших видео
+    request = HTTPXRequest(read_timeout=120, write_timeout=120, connect_timeout=30)
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).request(request).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
