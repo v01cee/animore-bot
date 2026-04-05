@@ -57,7 +57,8 @@ def create_page(username: str, url: str, title: str = "") -> None:
         },
         "Link": {"url": url},
         "Category": {"multi_select": [{"name": "Anime"}]},
-        "Checkbox": {"checkbox": False},
+        "Done": {"checkbox": False},
+        "Save": {"checkbox": False},
     }
     if title:
         properties["Title"] = {"multi_select": [{"name": title}]}
