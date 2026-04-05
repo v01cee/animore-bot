@@ -41,9 +41,10 @@ def format_views(n: int) -> str:
 
 
 def build_category_keyboard(categories: list[str]) -> InlineKeyboardMarkup:
-    """Строит инлайн-клавиатуру с кнопками категорий (по 2 в ряд)."""
+    """Строит инлайн-клавиатуру с кнопками тайтлов (по 2 в ряд) + кнопка пропуска."""
     buttons = [InlineKeyboardButton(cat, callback_data=f"cat:{cat}") for cat in categories]
     rows = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+    rows.append([InlineKeyboardButton("➡️ Без тайтла", callback_data="cat:")])
     return InlineKeyboardMarkup(rows)
 
 
