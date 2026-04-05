@@ -14,8 +14,8 @@ HEADERS = {
 }
 
 
-def get_categories() -> list[str]:
-    """Получает список всех категорий из схемы базы Notion."""
+def get_titles() -> list[str]:
+    """Получает список всех тайтлов (аниме) из схемы базы Notion."""
     resp = requests.get(
         f"{NOTION_API}/databases/{NOTION_DATABASE_ID}",
         headers=HEADERS,
@@ -27,7 +27,7 @@ def get_categories() -> list[str]:
     data = resp.json()
     options = (
         data.get("properties", {})
-        .get("Category", {})
+        .get("Title", {})
         .get("multi_select", {})
         .get("options", [])
     )
@@ -49,16 +49,18 @@ def get_page_by_url(url: str) -> dict | None:
     return results[0] if results else None
 
 
-def create_page(username: str, url: str, category: str = "Anime") -> None:
+def create_page(username: str, url: str, title: str = "") -> None:
     """Создаёт новую запись в базе Notion."""
     properties = {
         "Content Creator": {
             "title": [{"text": {"content": username}}],
         },
         "Link": {"url": url},
-        "Category": {"multi_select": [{"name": category}]},
+        "Category": {"multi_select": [{"name": "Anime"}]},
         "Checkbox": {"checkbox": False},
     }
+    if title:
+        properties["Title"] = {"multi_select": [{"name": title}]}
 
     resp = requests.post(
         f"{NOTION_API}/pages",

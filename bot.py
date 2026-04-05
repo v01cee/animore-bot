@@ -17,7 +17,7 @@ from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB, ADMIN_IDS
 from downloader import download_video
-from notion_service import get_categories, get_page_by_url, create_page
+from notion_service import get_titles, get_page_by_url, create_page
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -84,12 +84,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # --- Скачивание ---
     await update.message.reply_text("⏳ Скачиваю...")
 
-    # Подтягиваем категории из Notion параллельно со скачиванием
+    # Подтягиваем тайтлы из Notion параллельно со скачиванием
     try:
-        categories = get_categories()
+        categories = get_titles()
     except Exception as e:
-        logger.error("Ошибка получения категорий: %s", e)
-        categories = ["Anime"]
+        logger.error("Ошибка получения тайтлов: %s", e)
+        categories = []
 
     try:
         file_path, username, video_url, view_count = download_video(url)
@@ -138,12 +138,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     caption = f"👤 @{username}"
     if views_str:
         caption += f"  {views_str}"
-    caption += "\n\nВыбери категорию:"
+    caption += "\n\nВыбери аниме:"
 
-    await update.message.reply_text(
-        caption,
-        reply_markup=build_category_keyboard(categories),
-    )
+    if categories:
+        await update.message.reply_text(
+            caption,
+            reply_markup=build_category_keyboard(categories),
+        )
+    else:
+        # Если тайтлов нет — сохраняем без тайтла
+        try:
+            create_page(username=username, url=url)
+            await update.message.reply_text(f"{caption}\n\n✅ Сохранено в Notion.")
+        except Exception as e:
+            logger.error("Ошибка сохранения в Notion: %s", e)
+            await update.message.reply_text("❌ Не удалось сохранить в Notion.")
 
 
 async def _handle_existing(
@@ -222,13 +231,13 @@ async def handle_category(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         create_page(
             username=pending["username"],
             url=pending["url"],
-            category=category,
+            title=category,
         )
         views_str = f"  👁 {format_views(pending['view_count'])}" if pending.get("view_count") else ""
         await query.edit_message_text(
             f"✅ Сохранено в Notion.\n"
             f"👤 @{pending['username']}{views_str}\n"
-            f"📁 {category}"
+            f"🎬 {category}"
         )
         context.user_data.pop("pending", None)
     except Exception as e:
