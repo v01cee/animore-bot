@@ -16,7 +16,7 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_TOKEN, TELEGRAM_FILE_LIMIT_MB, ADMIN_IDS
-from downloader import download_video, fetch_video_from_url
+from downloader import download_video
 from notion_service import get_categories, get_page_by_url, create_page
 
 logging.basicConfig(
@@ -174,35 +174,19 @@ async def _handle_existing(
 
     await update.message.reply_text(info)
 
-    # Пытаемся переотправить видео по сохранённой ссылке
-    if video_url:
-        try:
-            file_path = fetch_video_from_url(video_url, filename=username)
-            file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    # Всегда скачиваем заново по оригинальной TikTok ссылке
+    # (CDN ссылки из Notion быстро истекают)
+    file_path = None
+    try:
+        await update.message.reply_text("⏳ Скачиваю видео...")
+        file_path, _, _, _ = download_video(url)
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
-            if file_size_mb > TELEGRAM_FILE_LIMIT_MB:
-                await update.message.reply_text(
-                    f"⚠️ Видео слишком большое ({file_size_mb:.1f} МБ)."
-                )
-            else:
-                with open(file_path, "rb") as vf:
-                    await update.message.reply_video(
-                        video=vf,
-                        read_timeout=120,
-                        write_timeout=120,
-                        connect_timeout=30,
-                    )
-        except Exception as e:
-            logger.error("Ошибка переотправки существующего видео: %s", e)
-            await update.message.reply_text("⚠️ Не удалось переотправить видео.")
-        finally:
-            if "file_path" in locals() and os.path.exists(file_path):
-                os.remove(file_path)
-    else:
-        # Видео не было сохранено — скачиваем заново
-        try:
-            await update.message.reply_text("⏳ Скачиваю видео заново...")
-            file_path, _, _, _ = download_video(url)
+        if file_size_mb > TELEGRAM_FILE_LIMIT_MB:
+            await update.message.reply_text(
+                f"⚠️ Видео слишком большое ({file_size_mb:.1f} МБ)."
+            )
+        else:
             with open(file_path, "rb") as vf:
                 await update.message.reply_video(
                     video=vf,
@@ -210,11 +194,12 @@ async def _handle_existing(
                     write_timeout=120,
                     connect_timeout=30,
                 )
-        except Exception as e:
-            logger.error("Ошибка скачивания существующего: %s", e)
-        finally:
-            if "file_path" in locals() and os.path.exists(file_path):
-                os.remove(file_path)
+    except Exception as e:
+        logger.error("Ошибка переотправки видео: %s", e)
+        await update.message.reply_text("❌ Не удалось скачать видео.")
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 
 async def handle_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
