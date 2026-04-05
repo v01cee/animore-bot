@@ -1,4 +1,4 @@
-"""Notion API через requests — проверка дубликатов и создание записей."""
+"""Notion API через requests — проверка дубликатов, создание записей, получение категорий."""
 
 import logging
 import requests
@@ -14,8 +14,28 @@ HEADERS = {
 }
 
 
-def link_exists(url: str) -> bool:
-    """Проверяет, есть ли ссылка уже в базе Notion."""
+def get_categories() -> list[str]:
+    """Получает список всех категорий из схемы базы Notion."""
+    resp = requests.get(
+        f"{NOTION_API}/databases/{NOTION_DATABASE_ID}",
+        headers=HEADERS,
+        timeout=15,
+    )
+    if not resp.ok:
+        logger.error("Notion get database error: %s", resp.text)
+        return []
+    data = resp.json()
+    options = (
+        data.get("properties", {})
+        .get("Category", {})
+        .get("multi_select", {})
+        .get("options", [])
+    )
+    return [opt["name"] for opt in options]
+
+
+def get_page_by_url(url: str) -> dict | None:
+    """Возвращает страницу из Notion по ссылке или None."""
     resp = requests.post(
         f"{NOTION_API}/databases/{NOTION_DATABASE_ID}/query",
         headers=HEADERS,
@@ -24,8 +44,9 @@ def link_exists(url: str) -> bool:
     )
     if not resp.ok:
         logger.error("Notion query error: %s", resp.text)
-    resp.raise_for_status()
-    return len(resp.json()["results"]) > 0
+        resp.raise_for_status()
+    results = resp.json().get("results", [])
+    return results[0] if results else None
 
 
 def create_page(username: str, url: str, video_url: str = "", category: str = "Anime") -> None:

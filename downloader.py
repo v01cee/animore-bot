@@ -12,9 +12,8 @@ def extract_username(url: str) -> str:
     return match.group(1) if match else ""
 
 
-def download_video(url: str) -> tuple[str, str, str]:
-    """Скачивает видео и возвращает (путь_к_файлу, username, video_url)."""
-    # Получаем данные о видео через API
+def download_video(url: str) -> tuple[str, str, str, int]:
+    """Скачивает видео и возвращает (путь_к_файлу, username, video_url, view_count)."""
     api_url = "https://www.tikwm.com/api/"
     resp = requests.get(api_url, params={"url": url, "hd": 1}, timeout=30)
     resp.raise_for_status()
@@ -29,7 +28,7 @@ def download_video(url: str) -> tuple[str, str, str]:
     if not video_url:
         raise Exception("Не удалось получить ссылку на видео")
 
-    # Извлекаем username
+    # Username
     username = extract_username(url)
     if not username:
         author = video_data.get("author", {})
@@ -38,6 +37,9 @@ def download_video(url: str) -> tuple[str, str, str]:
             or author.get("nickname")
             or "unknown"
         )
+
+    # Просмотры
+    view_count = video_data.get("play_count", 0) or 0
 
     # Скачиваем видео
     tmp_dir = tempfile.mkdtemp(prefix="animore_")
@@ -49,4 +51,18 @@ def download_video(url: str) -> tuple[str, str, str]:
     with open(file_path, "wb") as f:
         f.write(video_resp.content)
 
-    return file_path, username, video_url
+    return file_path, username, video_url, view_count
+
+
+def fetch_video_from_url(video_url: str, filename: str = "video") -> str:
+    """Скачивает видео по прямой ссылке и возвращает путь к файлу."""
+    tmp_dir = tempfile.mkdtemp(prefix="animore_")
+    file_path = os.path.join(tmp_dir, f"{filename}.mp4")
+
+    resp = requests.get(video_url, timeout=120)
+    resp.raise_for_status()
+
+    with open(file_path, "wb") as f:
+        f.write(resp.content)
+
+    return file_path
