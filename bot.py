@@ -166,20 +166,21 @@ async def _handle_existing(
     files = props.get("Files & media", {}).get("files", [])
     video_url = files[0].get("external", {}).get("url", "") if files else ""
 
-    info = (
-        f"⚠️ Уже есть в базе:\n"
-        f"👤 @{username}\n"
-        f"📁 {category_str}"
-    )
-
-    await update.message.reply_text(info)
-
     # Всегда скачиваем заново по оригинальной TikTok ссылке
     # (CDN ссылки из Notion быстро истекают)
     file_path = None
     try:
         await update.message.reply_text("⏳ Скачиваю видео...")
-        file_path, _, _, _ = download_video(url)
+        file_path, _, _, view_count = download_video(url)
+
+        # Обновляем инфо с просмотрами
+        views_str = f"  👁 {format_views(view_count)}" if view_count else ""
+        await update.message.reply_text(
+            f"⚠️ Уже есть в базе:\n"
+            f"👤 @{username}{views_str}\n"
+            f"📁 {category_str}"
+        )
+
         file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
         if file_size_mb > TELEGRAM_FILE_LIMIT_MB:
