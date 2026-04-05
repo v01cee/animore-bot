@@ -49,7 +49,7 @@ def get_page_by_url(url: str) -> dict | None:
     return results[0] if results else None
 
 
-def create_page(username: str, url: str, video_url: str = "", category: str = "Anime") -> None:
+def create_page(username: str, url: str, category: str = "Anime") -> None:
     """Создаёт новую запись в базе Notion."""
     properties = {
         "Content Creator": {
@@ -59,17 +59,6 @@ def create_page(username: str, url: str, video_url: str = "", category: str = "A
         "Category": {"multi_select": [{"name": category}]},
         "Checkbox": {"checkbox": False},
     }
-
-    if video_url:
-        properties["Files & media"] = {
-            "files": [
-                {
-                    "name": f"{username}.mp4",
-                    "type": "external",
-                    "external": {"url": video_url},
-                }
-            ]
-        }
 
     resp = requests.post(
         f"{NOTION_API}/pages",

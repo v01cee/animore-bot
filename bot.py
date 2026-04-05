@@ -222,7 +222,6 @@ async def handle_category(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         create_page(
             username=pending["username"],
             url=pending["url"],
-            video_url=pending.get("video_url", ""),
             category=category,
         )
         views_str = f"  👁 {format_views(pending['view_count'])}" if pending.get("view_count") else ""
